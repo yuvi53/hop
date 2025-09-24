@@ -14,7 +14,7 @@ fn test_set_defaults() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_search_path() -> Result<(), Box<dyn Error>> {
-    let path = search_path(String::from("lrust"))?;
+    let path = search_path(&String::from("lrust"))?;
     assert_eq!(path, String::from("/home/yuvi/lcode/lrust"));
     Ok(())
 }

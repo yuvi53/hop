@@ -28,9 +28,9 @@ fn set_defaults() -> Result<Config, Box<dyn Error>> {
         },
     };
     let mut data_path = data_home.clone();
-        data_path.push("hop/hop.txt");
+    data_path.push("hop/hop.txt");
     let mut backup_path = data_home.clone();
-        backup_path.push("hop/hop.txt.bak");
+    backup_path.push("hop/hop.txt.bak");
     Ok(Config {data_path, backup_path})
 }
 
@@ -40,7 +40,7 @@ fn create_data_dir() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn add_path(path: String) -> Result<(), Box<dyn Error>>{
+pub fn add_path(path: &String) -> Result<(), Box<dyn Error>> {
     let data_path = set_defaults()?.data_path;
     if !data_path.exists() {
         create_data_dir()?;
@@ -50,11 +50,41 @@ pub fn add_path(path: String) -> Result<(), Box<dyn Error>>{
         .append(true)
         .create(true)
         .open(data_path)?;
-    write!(file, "{}\n", &path)?;
+    write!(file, "{}\n", path)?;
     Ok(())
 }
 
-pub fn search_path(query: String) -> Result<String, Box<dyn Error>> {
-    Ok(String::new())
+pub fn search_path(query: &String) -> Result<String, Box<dyn Error>> {
+    let data_path = set_defaults()?.data_path;
+    let paths = fs::read_to_string(data_path)?;
+    let mut max_lcs: (usize, &str) = (0, "");
+    for path in paths.lines() {
+        let lcs = lcs(query, &path);
+        if lcs > max_lcs.0 {
+            max_lcs.0 = lcs;
+            max_lcs.1 = path;
+        }
+    }
+    Ok(max_lcs.1.to_string())
 } 
 
+fn lcs(s1: &str, s2: &str) -> usize {
+    let m = s1.chars().count();
+    let n = s2.chars().count();
+    let mut result = 0;
+
+    for i in 0..m {
+        for j in 0..n {
+            let mut curr = 0;
+            while (i + curr) < m 
+            && (j + curr) < n 
+            && s1.chars().nth(i + curr).unwrap() == s2.chars().nth(j + curr).unwrap() {
+                curr+=1;
+            }
+            if curr > result {
+                result = curr;
+            }
+        }
+    }
+    result
+}

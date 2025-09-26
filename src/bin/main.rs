@@ -7,12 +7,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         .arg(Arg::new("add")
             .long("add")
             .action(ArgAction::Set))
-        .arg(Arg::new("query_dir")
-            .value_name("dir_name")
-            .required(true))
+        .arg(Arg::new("dir")
+            .long("dir")
+            .action(ArgAction::Set))
         .get_matches();
-    if let Some(dir_name) = matches.get_one::<String>("query_dir") {
-        println!("{}", search_path(dir_name)?);
+    if let Some(dir) = matches.get_one::<String>("dir") {
+        println!("{}", search_path(dir)?);
     }
     if let Some(path) = matches.get_one::<String>("add") {
         add_path(path)?;

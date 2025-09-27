@@ -40,26 +40,29 @@ fn create_data_dir() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn add_path(path: &String) -> Result<(), Box<dyn Error>> {
+pub fn add_path(path: String) -> Result<(), Box<dyn Error>> {
     let data_path = set_defaults()?.data_path;
     if !data_path.exists() {
         create_data_dir()?;
+        File::create(&data_path)?;
     }
-    let mut file = OpenOptions::new()
-        .read(true)
-        .append(true)
-        .create(true)
-        .open(data_path)?;
-    write!(file, "{}\n", path)?;
+    if let false = fs::read_to_string(&data_path)?.contains(&path) {
+        let mut file = OpenOptions::new()
+            .read(true)
+            .append(true)
+            .create(true)
+            .open(&data_path)?;
+        write!(file, "{}\n", &path)?;
+    }
     Ok(())
 }
 
-pub fn search_path(query: &String) -> Result<String, Box<dyn Error>> {
+pub fn search_path(query: String) -> Result<String, Box<dyn Error>> {
     let data_path = set_defaults()?.data_path;
     let paths = fs::read_to_string(data_path)?;
     let mut max_lcs: (usize, &str) = (0, "");
     for path in paths.lines() {
-        let lcs = lcs(query, &path);
+        let lcs = lcs(&query, &path);
         if lcs > max_lcs.0 {
             max_lcs.0 = lcs;
             max_lcs.1 = path;

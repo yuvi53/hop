@@ -12,10 +12,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             .action(ArgAction::Set))
         .get_matches();
     if let Some(dir) = matches.get_one::<String>("dir") {
-        println!("{}", search_path(dir)?);
+        println!("{}", search_path(dir.clone())?);
     }
     if let Some(path) = matches.get_one::<String>("add") {
-        add_path(path)?;
+        add_path(path.clone())?;
     }
     Ok(())
 }

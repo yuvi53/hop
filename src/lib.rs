@@ -40,17 +40,35 @@ fn create_data_dir() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn if_exist(queried_path: &str) -> Result<bool, Box<dyn Error>> {
+    let data_path = set_defaults()?.data_path;
+    if !data_path.exists() {
+        create_data_dir()?;
+        File::create(&data_path)?;
+        return Ok(false)
+    }
+    let data = fs::read_to_string(&data_path)?;
+    let paths: Vec<&str> = data.lines().collect();
+    let mut exist = false;
+    for path in paths {
+        let path = path.trim();
+        if path == queried_path {
+            exist = true;
+        }
+    }
+    Ok(exist)
+}
+
 pub fn add_path(path: String) -> Result<(), Box<dyn Error>> {
     let data_path = set_defaults()?.data_path;
     if !data_path.exists() {
         create_data_dir()?;
         File::create(&data_path)?;
     }
-    if let false = fs::read_to_string(&data_path)?.contains(&path) {
+    if let false = if_exist(&path)? {
         let mut file = OpenOptions::new()
             .read(true)
             .append(true)
-            .create(true)
             .open(&data_path)?;
         write!(file, "{}\n", &path)?;
     }

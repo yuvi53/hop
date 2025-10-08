@@ -16,7 +16,7 @@ fn test_set_defaults() -> Result<(), Box<dyn Error>> {
 fn test_add_path() -> Result<(), Box<dyn Error>> {
     let new_path = String::from("/home/yuvi/test_dir/test_dir2/");  
     if let false = if_exist(&new_path)? {
-        add_path(new_path.clone())?;
+        add_path(new_path.clone(), None)?;
     }
     assert!(if_exist(&new_path)?);
     Ok(())
@@ -25,7 +25,7 @@ fn test_add_path() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_if_exist() -> Result<(), Box<dyn Error>> {
     let new_path = String::from("/home/yuvi/test_dir/test_dir2/");  
-    add_path(new_path.clone())?;
+    add_path(new_path.clone(), None)?;
     assert!(if_exist(&new_path)?);
     Ok(())
 }
@@ -35,7 +35,7 @@ fn test_search_path() -> Result<(), Box<dyn Error>> {
     let query_path = String::from("test_dir2");
     let expected_path = String::from("/home/yuvi/test_dir/test_dir2/"); 
     if let false = if_exist(&expected_path)? {
-        add_path(expected_path.clone())?;
+        add_path(expected_path.clone(), None)?;
     }
     assert_eq!(search_path(query_path)?, expected_path);
     Ok(())

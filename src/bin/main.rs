@@ -15,8 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("{}", search_path(dir.clone())?);
     }
     if let Some(path) = matches.get_one::<String>("add") {
-        add_path(path.clone())?;
+        add_path(path.clone(), None)?;
     }
     Ok(())
 }
-

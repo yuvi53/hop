@@ -41,7 +41,7 @@ fn create_data_dir() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn get_data() -> Result<Vec<(f64, String)>, Box<dyn Error>> {
+pub fn get_data() -> Result<Vec<(f64, String)>, Box<dyn Error>> {
     let re = Regex::new(r"(?m)^([0-9]+\.?[0-9]*) ([^:\n\r]+)$").unwrap();
     let data_path = set_defaults()?.data_path;
     if !data_path.exists() {
@@ -58,17 +58,17 @@ fn get_data() -> Result<Vec<(f64, String)>, Box<dyn Error>> {
     Ok(results)
 }
 
-fn if_exist(queried_path: &str) -> Result<bool, Box<dyn Error>> {
+fn if_exist(data: &Vec<(f64, String)>, queried_path: &str) -> Result<bool, Box<dyn Error>> {
     let mut exist = false;
-    for (_weight, path) in get_data()? {
-        if &path == queried_path {
+    for &(_weight, ref path) in data.iter() {
+        if path == queried_path {
             exist = true;
         }
     }
     Ok(exist)
 }
 
-pub fn add_path(path: String, weight: Option<f64>) -> Result<(), Box<dyn Error>> {
+pub fn add_path(data: &Vec<(f64, String)>, path: String, weight: Option<f64>) -> Result<(), Box<dyn Error>> {
     let weight = match weight {
         Some(num) => num,
         None => 10.0,
@@ -78,7 +78,7 @@ pub fn add_path(path: String, weight: Option<f64>) -> Result<(), Box<dyn Error>>
         create_data_dir()?;
         File::create(&data_path)?;
     }
-    match if_exist(&path)? {
+    match if_exist(&data, &path)? {
         false => {
             let mut file = OpenOptions::new()
                 .append(true)
@@ -90,13 +90,14 @@ pub fn add_path(path: String, weight: Option<f64>) -> Result<(), Box<dyn Error>>
                 .write(true)
                 .open(&data_path)?;
             let mut buffer = String::new();
-            for (lweight, lpath) in get_data()? {
-                if &lpath == &path {
+            for &(lweight, ref lpath) in data.iter() {
+                if lpath == &path {
                     let lweight = ((lweight * lweight) + (weight * weight)).sqrt();
-                    buffer.push_str(& format!("{lweight} {path}\n"));
-                    continue;
+                    buffer.push_str(& format!("{lweight} {lpath}\n"));
                 }
-                buffer.push_str(& format!("{lweight} {path}\n"));
+                else {
+                    buffer.push_str(& format!("{lweight} {lpath}\n"));
+                }
             }
             write!(file, "{}", buffer)?;
         },
@@ -104,8 +105,7 @@ pub fn add_path(path: String, weight: Option<f64>) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-pub fn search_path(query: String) -> Result<String, Box<dyn Error>> {
-    let data = get_data()?;
+pub fn search_path(data: &Vec<(f64, String)>, query: String) -> Result<String, Box<dyn Error>> { 
     let mut matches: Vec<(f64, String)> = Vec::new();
     for &(weight, ref path) in data.iter() {
         if path.contains(&query) {

@@ -98,24 +98,28 @@ pub fn add_path(path: String, weight: Option<f64>) -> Result<(), Box<dyn Error>>
                 }
                 buffer.push_str(& format!("{lweight} {path}\n"));
             }
-            write!(file, "{}", &buffer)?;
+            write!(file, "{}", buffer)?;
         },
     }
     Ok(())
 }
 
 pub fn search_path(query: String) -> Result<String, Box<dyn Error>> {
-    let data_path = set_defaults()?.data_path;
-    let paths = fs::read_to_string(data_path)?;
-    let mut max_lcs: (usize, &str) = (0, "");
-    for path in paths.lines() {
-        let lcs = lcs(&query, &path);
-        if lcs > max_lcs.0 {
-            max_lcs.0 = lcs;
-            max_lcs.1 = path;
+    let data = get_data()?;
+    let mut matches: Vec<(f64, String)> = Vec::new();
+    for &(weight, ref path) in data.iter() {
+        if path.contains(&query) {
+            matches.push((weight, path.clone()));
         }
     }
-    Ok(max_lcs.1.to_string())
+    let mut hw: (f64, String) = (0.0, String::from(""));
+    for &(weight, ref path) in data.iter() {
+        if weight > hw.0 {
+            hw.0 = weight;
+            hw.1 = path.clone();
+        }
+    }
+    Ok(hw.1.to_string())
 } 
 
 fn lcs(s1: &str, s2: &str) -> usize {

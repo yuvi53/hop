@@ -83,6 +83,7 @@ pub fn add_path(data: &Vec<(f64, String)>, path: String, weight: Option<f64>) ->
             let mut file = OpenOptions::new()
                 .append(true)
                 .open(&data_path)?;
+            file.lock()?;
             write!(file, "{weight} {}\n", &path)?;
         },
         true => {
@@ -99,6 +100,7 @@ pub fn add_path(data: &Vec<(f64, String)>, path: String, weight: Option<f64>) ->
                     buffer.push_str(& format!("{lweight} {lpath}\n"));
                 }
             }
+            file.lock()?;
             write!(file, "{}", buffer)?;
         },
     }
@@ -113,7 +115,7 @@ pub fn search_path(data: &Vec<(f64, String)>, query: String) -> Result<String, B
         }
     }
     let mut hw: (f64, String) = (0.0, String::from(""));
-    for &(weight, ref path) in data.iter() {
+    for &(weight, ref path) in matches.iter() {
         if weight > hw.0 {
             hw.0 = weight;
             hw.1 = path.clone();

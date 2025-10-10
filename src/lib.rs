@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::env;
 use std::error::Error;
 use dotenvy::dotenv;
+use regex::Regex;
 
 #[cfg(test)]
 mod tests;
@@ -40,18 +41,26 @@ fn create_data_dir() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn if_exist(queried_path: &str) -> Result<bool, Box<dyn Error>> {
+pub fn get_data() -> Result<Vec<(f64, String)>, Box<dyn Error>> {
+    let re = Regex::new(r"(?m)^([0-9]+\.?[0-9]*) ([^:\n\r]+)$").unwrap();
     let data_path = set_defaults()?.data_path;
     if !data_path.exists() {
         create_data_dir()?;
         File::create(&data_path)?;
-        return Ok(false)
+        return Ok(Vec::new());
     }
-    let data = fs::read_to_string(&data_path)?;
-    let paths: Vec<&str> = data.lines().collect();
-    let mut exist = false;
-    for path in paths {
+    let hay = fs::read_to_string(&data_path)?;
+    let results: Vec<(f64, String)> = re.captures_iter(&hay).map(|c| {
+        let (_, [weight, path]) = c.extract();
         let path = path.trim();
+        (weight.parse::<f64>().unwrap(), path.to_string())
+    }).collect();
+    Ok(results)
+}
+
+fn if_exist(data: &Vec<(f64, String)>, queried_path: &str) -> Result<bool, Box<dyn Error>> {
+    let mut exist = false;
+    for &(_weight, ref path) in data.iter() {
         if path == queried_path {
             exist = true;
         }
@@ -59,34 +68,62 @@ fn if_exist(queried_path: &str) -> Result<bool, Box<dyn Error>> {
     Ok(exist)
 }
 
-pub fn add_path(path: String) -> Result<(), Box<dyn Error>> {
+pub fn add_path(data: &Vec<(f64, String)>, path: String, weight: Option<f64>) -> Result<(), Box<dyn Error>> {
+    let weight = match weight {
+        Some(num) => num,
+        None => 10.0,
+    };
     let data_path = set_defaults()?.data_path;
     if !data_path.exists() {
         create_data_dir()?;
         File::create(&data_path)?;
     }
-    if let false = if_exist(&path)? {
-        let mut file = OpenOptions::new()
-            .read(true)
-            .append(true)
-            .open(&data_path)?;
-        write!(file, "{}\n", &path)?;
+    if &path == &env::var("HOME").unwrap() {
+        return Ok(());
     }
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&data_path)?;
+    let mut buffer = String::new();
+    match if_exist(&data, &path)? {
+        false => {
+            for &(lweight, ref lpath) in data.iter() {
+                buffer.push_str(& format!("{lweight} {lpath}\n"));
+            }
+            buffer.push_str(& format!("{weight} {path}\n"));
+        },
+        true => {
+            for &(lweight, ref lpath) in data.iter() {
+                if lpath == &path {
+                    let lweight = ((lweight * lweight) + (weight * weight)).sqrt();
+                    buffer.push_str(& format!("{lweight} {lpath}\n"));
+                }
+                else {
+                    buffer.push_str(& format!("{lweight} {lpath}\n"));
+                }
+            }
+        },
+    }
+    write!(file, "{}", buffer)?;
     Ok(())
 }
 
-pub fn search_path(query: String) -> Result<String, Box<dyn Error>> {
-    let data_path = set_defaults()?.data_path;
-    let paths = fs::read_to_string(data_path)?;
-    let mut max_lcs: (usize, &str) = (0, "");
-    for path in paths.lines() {
-        let lcs = lcs(&query, &path);
-        if lcs > max_lcs.0 {
-            max_lcs.0 = lcs;
-            max_lcs.1 = path;
+pub fn search_path(data: &Vec<(f64, String)>, query: String) -> Result<String, Box<dyn Error>> { 
+    let mut matches: Vec<(f64, String)> = Vec::new();
+    for &(weight, ref path) in data.iter() {
+        if path.contains(&query) {
+            matches.push((weight, path.clone()));
         }
     }
-    Ok(max_lcs.1.to_string())
+    let mut hw: (f64, String) = (0.0, String::from(""));
+    for &(weight, ref path) in matches.iter() {
+        if weight > hw.0 {
+            hw.0 = weight;
+            hw.1 = path.clone();
+        }
+    }
+    Ok(hw.1.to_string())
 } 
 
 fn lcs(s1: &str, s2: &str) -> usize {

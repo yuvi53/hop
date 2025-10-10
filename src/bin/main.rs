@@ -1,6 +1,6 @@
 use std::error::Error;
 use clap::{Arg, Command, ArgAction};
-use hopv2::{add_path, search_path, get_data};
+use hop::{add_path, search_path, get_data};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = Command::new("whatever")

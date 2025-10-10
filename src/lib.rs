@@ -78,19 +78,19 @@ pub fn add_path(data: &Vec<(f64, String)>, path: String, weight: Option<f64>) ->
         create_data_dir()?;
         File::create(&data_path)?;
     }
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&data_path)?;
+    let mut buffer = String::new();
     match if_exist(&data, &path)? {
         false => {
-            let mut file = OpenOptions::new()
-                .append(true)
-                .open(&data_path)?;
-            file.lock()?;
-            write!(file, "{weight} {}\n", &path)?;
+            for &(lweight, ref lpath) in data.iter() {
+                buffer.push_str(& format!("{lweight} {lpath}\n"));
+            }
+            buffer.push_str(& format!("{weight} {path}\n"));
         },
         true => {
-            let mut file = OpenOptions::new()
-                .write(true)
-                .open(&data_path)?;
-            let mut buffer = String::new();
             for &(lweight, ref lpath) in data.iter() {
                 if lpath == &path {
                     let lweight = ((lweight * lweight) + (weight * weight)).sqrt();
@@ -100,10 +100,9 @@ pub fn add_path(data: &Vec<(f64, String)>, path: String, weight: Option<f64>) ->
                     buffer.push_str(& format!("{lweight} {lpath}\n"));
                 }
             }
-            file.lock()?;
-            write!(file, "{}", buffer)?;
         },
     }
+    write!(file, "{}", buffer)?;
     Ok(())
 }
 

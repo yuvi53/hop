@@ -78,6 +78,9 @@ pub fn add_path(data: &Vec<(f64, String)>, path: String, weight: Option<f64>) ->
         create_data_dir()?;
         File::create(&data_path)?;
     }
+    if &path == &env::var("HOME").unwrap() {
+        return Ok(());
+    }
     let mut file = OpenOptions::new()
         .write(true)
         .truncate(true)

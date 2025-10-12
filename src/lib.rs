@@ -109,22 +109,23 @@ pub fn add_path(data: &Vec<(f64, String)>, path: String, weight: Option<f64>) ->
     Ok(())
 }
 
-pub fn search_path(data: &Vec<(f64, String)>, query: String) -> Result<String, Box<dyn Error>> { 
+pub fn search_for_path(data: &Vec<(f64, String)>, query: String) -> Vec<(f64, String)> { 
     let mut matches: Vec<(f64, String)> = Vec::new();
     for &(weight, ref path) in data.iter() {
         if path.contains(&query) {
             matches.push((weight, path.clone()));
         }
     }
-    let mut hw: (f64, String) = (0.0, String::from(""));
-    for &(weight, ref path) in matches.iter() {
-        if weight > hw.0 {
-            hw.0 = weight;
-            hw.1 = path.clone();
-        }
+    matches.sort_by(|a, b| a.0.total_cmp(&b.0));
+    matches
+}
+
+pub fn match_path(data: &Vec<(f64, String)>) -> Result<String, Box<dyn Error>> {
+    if data[data.len() -1].1 == std::env::current_dir()?.to_string_lossy() {
+        return Ok(data[data.len() -2].1.clone());
     }
-    Ok(hw.1.to_string())
-} 
+    Ok(data[data.len() -1].1.clone())
+}
 
 fn lcs(s1: &str, s2: &str) -> usize {
     let m = s1.chars().count();

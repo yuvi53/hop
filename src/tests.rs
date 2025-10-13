@@ -31,12 +31,28 @@ fn test_if_exist() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn test_search_path() -> Result<(), Box<dyn Error>> {
+fn test_search_for_path() -> Result<(), Box<dyn Error>> {
     let query_path = String::from("test_dir2");
     let expected_path = String::from("/home/yuvi/test_dir/test_dir2/"); 
     if let false = if_exist(&get_data()?, &expected_path)? {
         add_path(&get_data()?, expected_path.clone(), None)?;
     }
-    assert_eq!(search_path(&get_data()?, query_path)?, expected_path);
+    let data = search_for_path(&get_data()?, query_path);
+    assert_eq!(data[0].path, expected_path);
     Ok(())
 }
+
+
+#[test]
+fn test_match_path() -> Result<(), Box<dyn Error>> {
+    let query_path = String::from("test_dir2");
+    let expected_path = String::from("/home/yuvi/test_dir/test_dir2/"); 
+    if let false = if_exist(&get_data()?, &expected_path)? {
+        add_path(&get_data()?, expected_path.clone(), None)?;
+    }
+    assert_eq!(match_path(&search_for_path(&get_data()?, query_path))?, expected_path);
+    Ok(())
+}
+
+
+

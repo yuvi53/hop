@@ -16,6 +16,11 @@ pub struct Config {
     pub backup_path: PathBuf,
 }
 
+pub struct Data {
+    pub weight: f64,
+    pub path: String,
+}
+
 fn set_defaults() -> Result<Config, Box<dyn Error>> {
     dotenv().ok();
     let data_home: PathBuf = match env::var("XDG_DATA_HOME") {
@@ -41,7 +46,7 @@ fn create_data_dir() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn get_data() -> Result<Vec<(f64, String)>, Box<dyn Error>> {
+pub fn get_data() -> Result<Vec<Data>, Box<dyn Error>> {
     let re = Regex::new(r"(?m)^([0-9]+\.?[0-9]*) ([^:\n\r]+)$").unwrap();
     let data_path = set_defaults()?.data_path;
     if !data_path.exists() {
@@ -50,17 +55,22 @@ pub fn get_data() -> Result<Vec<(f64, String)>, Box<dyn Error>> {
         return Ok(Vec::new());
     }
     let hay = fs::read_to_string(&data_path)?;
-    let results: Vec<(f64, String)> = re.captures_iter(&hay).map(|c| {
+    let results: Vec<Data> = re.captures_iter(&hay).map(|c| {
         let (_, [weight, path]) = c.extract();
-        let path = path.trim();
-        (weight.parse::<f64>().unwrap(), path.to_string())
+        let path = path
+            .trim()
+            .to_string();
+        let weight = weight
+            .parse::<f64>()
+            .expect("couldn't convert &str to f64(while parsing)");
+        Data {weight, path}
     }).collect();
     Ok(results)
 }
 
-fn if_exist(data: &Vec<(f64, String)>, queried_path: &str) -> Result<bool, Box<dyn Error>> {
+fn if_exist(data: &Vec<Data>, queried_path: &str) -> Result<bool, Box<dyn Error>> {
     let mut exist = false;
-    for &(_weight, ref path) in data.iter() {
+    for &Data {weight: _, ref path} in data.iter() {
         if path == queried_path {
             exist = true;
         }
@@ -68,7 +78,7 @@ fn if_exist(data: &Vec<(f64, String)>, queried_path: &str) -> Result<bool, Box<d
     Ok(exist)
 }
 
-pub fn add_path(data: &Vec<(f64, String)>, path: String, weight: Option<f64>) -> Result<(), Box<dyn Error>> {
+pub fn add_path(data: &Vec<Data>, path: String, weight: Option<f64>) -> Result<(), Box<dyn Error>> {
     let weight = match weight {
         Some(num) => num,
         None => 10.0,
@@ -88,19 +98,19 @@ pub fn add_path(data: &Vec<(f64, String)>, path: String, weight: Option<f64>) ->
     let mut buffer = String::new();
     match if_exist(&data, &path)? {
         false => {
-            for &(lweight, ref lpath) in data.iter() {
-                buffer.push_str(& format!("{lweight} {lpath}\n"));
+            for &Data {weight, ref path} in data.iter() {
+                buffer.push_str(& format!("{} {}\n", weight, path.clone()));
             }
-            buffer.push_str(& format!("{weight} {path}\n"));
+            buffer.push_str(& format!("{} {}\n", weight, path));
         },
         true => {
-            for &(lweight, ref lpath) in data.iter() {
+            for Data {weight: lweight, path: lpath} in data.iter() {
                 if lpath == &path {
                     let lweight = ((lweight * lweight) + (weight * weight)).sqrt();
-                    buffer.push_str(& format!("{lweight} {lpath}\n"));
-                }
+                    buffer.push_str(& format!("{} {}\n", lweight, lpath));
+                } 
                 else {
-                    buffer.push_str(& format!("{lweight} {lpath}\n"));
+                    buffer.push_str(& format!("{} {}\n", lweight, lpath));
                 }
             }
         },
@@ -109,25 +119,25 @@ pub fn add_path(data: &Vec<(f64, String)>, path: String, weight: Option<f64>) ->
     Ok(())
 }
 
-pub fn search_for_path(data: &Vec<(f64, String)>, query: String) -> Vec<(f64, String)> { 
-    let mut matches: Vec<(f64, String)> = Vec::new();
-    for &(weight, ref path) in data.iter() {
+pub fn search_for_path(data: &Vec<Data>, query: String) -> Vec<Data> { 
+    let mut matches: Vec<Data> = Vec::new();
+    for &Data {weight, ref path} in data.iter() {
         if path.contains(&query) {
-            matches.push((weight, path.clone()));
+            matches.push( Data {weight, path: path.clone()});
         }
     }
-    matches.sort_by(|a, b| a.0.total_cmp(&b.0));
+    matches.sort_by(|a, b| b.weight.total_cmp(&a.weight));
     matches
 }
 
-pub fn match_path(data: &Vec<(f64, String)>) -> Result<String, Box<dyn Error>> {
-    if data[data.len() -1].1 == std::env::current_dir()?.to_string_lossy() {
-        return Ok(data[data.len() -2].1.clone());
+pub fn match_path(data: &Vec<Data>) -> Result<String, Box<dyn Error>> {
+    if data[0].path == std::env::current_dir()?.to_string_lossy() {
+        return Ok(data[1].path.clone());
     }
-    Ok(data[data.len() -1].1.clone())
+    Ok(data[0].path.clone())
 }
 
-fn lcs(s1: &str, s2: &str) -> usize {
+fn _lcs(s1: &str, s2: &str) -> usize {
     let m = s1.chars().count();
     let n = s2.chars().count();
     let mut result = 0;

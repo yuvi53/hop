@@ -134,7 +134,7 @@ pub fn search_for_path(data: &Vec<Data>, query: String) -> Result<String, Box<dy
                 .expect("couldn't match consecutive")
         );
     }
-    Ok(data[0].path.clone())
+    Ok(matches[0].path.clone())
 }
 
 fn match_consecutive(needle: String, entries: Vec<Data>) -> Option<String> {

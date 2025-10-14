@@ -16,6 +16,7 @@ pub struct Config {
     pub backup_path: PathBuf,
 }
 
+#[derive(Clone)]
 pub struct Data {
     pub weight: f64,
     pub path: String,
@@ -119,7 +120,7 @@ pub fn add_path(data: &Vec<Data>, path: String, weight: Option<f64>) -> Result<(
     Ok(())
 }
 
-pub fn search_for_path(data: &Vec<Data>, query: String) -> Vec<Data> { 
+pub fn search_for_path(data: &Vec<Data>, query: String) -> Result<String, Box<dyn Error>> { 
     let mut matches: Vec<Data> = Vec::new();
     for &Data {weight, ref path} in data.iter() {
         if path.contains(&query) {
@@ -127,17 +128,36 @@ pub fn search_for_path(data: &Vec<Data>, query: String) -> Vec<Data> {
         }
     }
     matches.sort_by(|a, b| b.weight.total_cmp(&a.weight));
-    matches
-}
-
-pub fn match_path(data: &Vec<Data>) -> Result<String, Box<dyn Error>> {
-    if data[0].path == std::env::current_dir()?.to_string_lossy() {
-        return Ok(data[1].path.clone());
+    if matches[0].path == std::env::current_dir()?.to_string_lossy() {
+        return Ok(
+            match_consecutive(query, data.clone())
+                .expect("couldn't match consecutive")
+        );
     }
     Ok(data[0].path.clone())
 }
 
-fn _lcs(s1: &str, s2: &str) -> usize {
+fn match_consecutive(needle: String, entries: Vec<Data>) -> Option<String> {
+    let re =  Regex::new(& format!(r"^([^:]+)/{}$", &needle)).unwrap();
+    let closure = |r: &Data| re.is_match(& r.path);
+    let results = ifilter(closure, entries);
+    Some(results[0].path.clone())
+}
+
+fn ifilter<F, I, T,>(f: F, entries: I) -> Vec<T>
+    where F: Fn(&T) -> bool,
+    I: IntoIterator<Item = T>,
+{
+    let mut results: Vec<T> = Vec::new();
+    for entry in entries.into_iter() {
+        if f(&entry) {
+            results.push(entry)
+        }
+    }
+    results
+}
+
+fn lcs(s1: &str, s2: &str) -> usize {
     let m = s1.chars().count();
     let n = s2.chars().count();
     let mut result = 0;

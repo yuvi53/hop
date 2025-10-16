@@ -141,8 +141,7 @@ pub fn find_matches(entries: Vec<Data>, needle: String) -> Result<Vec<Data>, Box
 
 fn match_consecutive(needle: String, entries: Vec<Data>) -> Vec<Data> {
     let closure = |r: &Data| r.path.ends_with(&needle);
-    let results = ifilter(closure, entries);
-    results
+    ifilter(closure, entries)
 }
 
 fn ifilter<F, I, T,>(f: F, entries: I) -> Vec<T>
@@ -163,12 +162,18 @@ fn match_fuzzy(needle: String, entries: Vec<Data>, threshold: Option<f64>) -> Ve
         Some(num) => num,
         None => 0.6,
     };
-    let v: Vec<Data> = vec![];
-    v
+    let meets_threshold = |entry: &Data| {
+        let entry = entry.path
+            .file_name()
+            .expect("couldn't get the dir name")
+            .to_str()
+            .expect("couldn't convert OsStr into &str");
+        match_percent(&entry, &needle) >= threshold
+    };
+    ifilter(meets_threshold, entries)
 }
 
-
-fn lcs(s1: &str, s2: &str) -> usize {
+fn match_percent(s1: &str, s2: &str) -> f64 {
     let m = s1.chars().count();
     let n = s2.chars().count();
     let mut result = 0;
@@ -186,5 +191,5 @@ fn lcs(s1: &str, s2: &str) -> usize {
             }
         }
     }
-    result
+    (result as f64 * 2.0) / (m as f64 + n as f64)
 }

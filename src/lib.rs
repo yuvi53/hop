@@ -5,6 +5,7 @@ use std::env;
 use std::error::Error;
 use dotenvy::dotenv;
 use regex::Regex;
+use std::iter;
 
 #[cfg(test)]
 mod tests;
@@ -19,7 +20,7 @@ pub struct Config {
 #[derive(Clone)]
 pub struct Data {
     pub weight: f64,
-    pub path: String,
+    pub path: PathBuf,
 }
 
 fn set_defaults() -> Result<Config, Box<dyn Error>> {
@@ -59,20 +60,19 @@ pub fn get_data() -> Result<Vec<Data>, Box<dyn Error>> {
     let results: Vec<Data> = re.captures_iter(&hay).map(|c| {
         let (_, [weight, path]) = c.extract();
         let path = path
-            .trim()
-            .to_string();
+            .trim();
         let weight = weight
             .parse::<f64>()
             .expect("couldn't convert &str to f64(while parsing)");
-        Data {weight, path}
+        Data {weight, path: PathBuf::from(path)}
     }).collect();
     Ok(results)
 }
 
-fn if_exist(data: &Vec<Data>, queried_path: &str) -> Result<bool, Box<dyn Error>> {
+fn exist_in_database(data: &Vec<Data>, queried_path: &str) -> Result<bool, Box<dyn Error>> {
     let mut exist = false;
     for &Data {weight: _, ref path} in data.iter() {
-        if path == queried_path {
+        if path.to_str().unwrap() == queried_path {
             exist = true;
         }
     }
@@ -97,15 +97,16 @@ pub fn add_path(data: &Vec<Data>, path: String, weight: Option<f64>) -> Result<(
         .truncate(true)
         .open(&data_path)?;
     let mut buffer = String::new();
-    match if_exist(&data, &path)? {
+    match exist_in_database(&data, &path)? {
         false => {
             for &Data {weight, ref path} in data.iter() {
-                buffer.push_str(& format!("{} {}\n", weight, path.clone()));
+                buffer.push_str(& format!("{} {}\n", weight, path.to_str().unwrap()));
             }
-            buffer.push_str(& format!("{} {}\n", weight, path));
+            buffer.push_str(& format!("{} {}\n", weight, &path));
         },
         true => {
             for Data {weight: lweight, path: lpath} in data.iter() {
+                let lpath = lpath.to_str().unwrap();
                 if lpath == &path {
                     let lweight = ((lweight * lweight) + (weight * weight)).sqrt();
                     buffer.push_str(& format!("{} {}\n", lweight, lpath));
@@ -120,28 +121,27 @@ pub fn add_path(data: &Vec<Data>, path: String, weight: Option<f64>) -> Result<(
     Ok(())
 }
 
-pub fn search_for_path(data: &Vec<Data>, query: String) -> Result<String, Box<dyn Error>> { 
-    let mut matches: Vec<Data> = Vec::new();
-    for &Data {weight, ref path} in data.iter() {
-        if path.contains(&query) {
-            matches.push( Data {weight, path: path.clone()});
-        }
-    }
-    matches.sort_by(|a, b| b.weight.total_cmp(&a.weight));
-    if matches[0].path == std::env::current_dir()?.to_string_lossy() {
-        return Ok(
-            match_consecutive(query, data.clone())
-                .expect("couldn't match consecutive")
-        );
-    }
-    Ok(matches[0].path.clone())
+pub fn find_matches(entries: Vec<Data>, needle: String) -> Result<Vec<Data>, Box<dyn Error>> {
+    let is_cwd = |entry: &Data| {
+        let pwd = std::env::current_dir()
+            .expect("couldn't get the working directory");
+        let pwd = pwd.to_str().expect("couldn't convert pwd to &str");
+        let entry_path = entry.path.to_str().unwrap();
+        pwd == entry_path
+    };
+    let matches: Vec<Data> = ifilter(
+        |entry: &Data| !is_cwd(entry) && entry.path.exists(),
+        iter::chain(
+            match_consecutive(needle.clone(), entries.clone()),
+            match_fuzzy(needle.clone(), entries.clone(), None),
+        )
+    ); 
+    Ok(matches)
 }
 
-fn match_consecutive(needle: String, entries: Vec<Data>) -> Option<String> {
-    let re =  Regex::new(& format!(r"^([^:]+)/{}$", &needle)).unwrap();
-    let closure = |r: &Data| re.is_match(& r.path);
-    let results = ifilter(closure, entries);
-    Some(results[0].path.clone())
+fn match_consecutive(needle: String, entries: Vec<Data>) -> Vec<Data> {
+    let closure = |r: &Data| r.path.ends_with(&needle);
+    ifilter(closure, entries)
 }
 
 fn ifilter<F, I, T,>(f: F, entries: I) -> Vec<T>
@@ -157,7 +157,23 @@ fn ifilter<F, I, T,>(f: F, entries: I) -> Vec<T>
     results
 }
 
-fn lcs(s1: &str, s2: &str) -> usize {
+fn match_fuzzy(needle: String, entries: Vec<Data>, threshold: Option<f64>) -> Vec<Data> {
+    let threshold = match threshold {
+        Some(num) => num,
+        None => 0.6,
+    };
+    let meets_threshold = |entry: &Data| {
+        let entry = entry.path
+            .file_name()
+            .expect("couldn't get the dir name")
+            .to_str()
+            .expect("couldn't convert OsStr into &str");
+        match_percent(&entry, &needle) >= threshold
+    };
+    ifilter(meets_threshold, entries)
+}
+
+fn match_percent(s1: &str, s2: &str) -> f64 {
     let m = s1.chars().count();
     let n = s2.chars().count();
     let mut result = 0;
@@ -175,5 +191,5 @@ fn lcs(s1: &str, s2: &str) -> usize {
             }
         }
     }
-    result
+    (result as f64 * 2.0) / (m as f64 + n as f64)
 }

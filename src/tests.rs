@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-use std::error::Error;
 use crate::*; 
 
 #[test]
@@ -14,42 +12,101 @@ fn test_set_defaults() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_add_path() -> Result<(), Box<dyn Error>> {
-    let new_path = String::from("/home/yuvi/test_dir/test_dir2");  
-    if let false = if_exist(&get_data()?, &new_path)? {
-        add_path(&get_data()?, new_path.clone(), None)?;
+    let string_foo = String::from("/home/yuvi/foo_dir");  
+    if !exist_in_database(&string_foo)? {
+        add_path(string_foo.clone(), get_data()?, None)?;
     }
-    assert!(if_exist(&get_data()?, &new_path)?);
+    assert!(exist_in_database(&string_foo)?);
     Ok(())
 }
 
 #[test]
-fn test_if_exist() -> Result<(), Box<dyn Error>> {
-    let new_path = String::from("/home/yuvi/test_dir/test_dir2");  
-    add_path(&get_data()?, new_path.clone(), None)?;
-    assert!(if_exist(&get_data()?, &new_path)?);
+fn test_exist_in_database() -> Result<(), Box<dyn Error>> {
+    let string_foo = String::from("/home/yuvi/foo_dir");  
+    add_path(string_foo.clone(), &get_data()?, None);
+    assert!(exist_in_database(&string_foo)?);
     Ok(())
 }
 
 #[test]
-fn test_search_for_path() -> Result<(), Box<dyn Error>> {
-    let query_path = String::from("test_dir2");
-    let expected_path = String::from("/home/yuvi/test_dir/test_dir2"); 
-    if let false = if_exist(&get_data()?, &expected_path)? {
-        add_path(&get_data()?, expected_path.clone(), None)?;
+fn test_get_data() -> Result<(), Box<dyn Error>>{
+    let results: Vec<Data> = vec![];
+    if get_data()? == results {
+        let string_foo = String::from("/home/yuvi/foo_dir");
+        add_path(string_foo.clone(), &get_data()?, None);
     }
-    let path = search_for_path(&get_data()?, query_path)?;
-    assert_eq!(path, expected_path);
+    let path_foo = PathBuf::from(&string_foo);
+    let results = get_data()?;
+    assert_eq!(results[0].path, path_foo);
+    Ok(())
+}
+
+#[test]
+fn test_find_matches() -> Result<(), Box<dyn Error>> {
+    let string_bar = String::from("/home/yuvi/bar_dir");
+    let string_foo = String::from("/home/yuvi/foo_dir");
+    let path_bar = PathBuf::from(&string_bar);
+    let path_foo = PathBuf::from(&string_foo);
+    if !exist_in_database(&string_bar)? {
+        add_path(string_bar.clone(), &get_data()?, None);
+    }
+    if !exist_in_database(&string_foo)? {
+        add_path(string_foo.clone(), &get_data()?, None);
+    }
+    assert!(exist_in_database(&string_bar)?);
+    assert!(exist_in_database(&string_foo)?);
+    //testing for consecutive
+    let results = match_consecutive(String::from("bar_dir"), get_data()?);  
+    assert_eq!(results[0].path, path_bar);
+    //testing for fuzzy
+    let results = match_consecutive(String::from("foo_"), get_data()?);  
+    assert_eq!(results[0].path, path_foo);
+    Ok(())
+}
+
+#[test]
+fn test_ifilter() -> Result<(), Box<dyn Error>>{
+    let empty_vec: Vec<Data> = vec[]!;
+    let closure = |&entry| false;
+    assert_eq!(ifilter(closure, get_data()?), empty_vec);
+    if get_data()? == empty_vec {
+        let string_foo = String::from("/home/yuvi/foo_dir");
+        add_path(string_bar.clone(), &get_data()?, None);
+    }
+    let closure = |&entry| true;
+    assert!(ifilter(closure, get_data()?), empty_vec);
     Ok(())
 }
 
 #[test]
 fn test_match_consecutive() -> Result<(), Box<dyn Error>> {
-    let query_path = String::from("test_dir2");
-    let expected_path = String::from("/home/yuvi/test_dir/test_dir2"); 
-    if let false = if_exist(&get_data()?, &expected_path)? {
-        add_path(&get_data()?, expected_path.clone(), None)?;
+    let string_path = String::from("/home/yuvi/foo_dir");
+    let expected_path = PathBuf::from(&string_path);
+    if !exist_in_database(&string_path) {
+        add_path(&get_data()?, string_path.clone(), None);
     }
-    let path = match_consecutive(query_path, get_data()?).unwrap();
-    assert_eq!(path, expected_path);
+    assert!(exist_in_database(&string_path));
+    let results = match_consecutive(String::from("foo_dir"), get_data()?);  
+    assert_eq!(results[0].path, expected_path);
     Ok(())
+}
+
+#[test]
+fn test_match_fuzzy() -> Result<(), Box<dyn Error>> {
+    let string_path = String::from("/home/yuvi/foo_dir");
+    let expected_path = PathBuf::from(&string_path);
+    if !exist_in_database(&string_path) {
+        add_path(&get_data()?, string_path.clone(), None);
+    }
+    assert!(exist_in_database(&string_path));
+    let results = match_fuzzy(String::from("foo_"), get_data()?, None);  
+    assert_eq!(results[0].path, expected_path);
+    Ok(())
+}
+
+#[test]
+fn test_match_percent() {
+    let s1 = "someone";
+    let s2 = "some";
+    assert_eq!(match_percent(s1, s2), 0.7272727272727273);
 }

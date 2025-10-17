@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get_matches();
     let data = get_data()?;
     if let Some(dir) = matches.get_one::<String>("dir") {
-        let matches = find_matches(get_data()?, dir.clone())?;
+        let matches = find_matches(dir.clone(), get_data()?);
         println!("{}", matches[0].path.display());
     }
     if let Some(path) = matches.get_one::<String>("add") {

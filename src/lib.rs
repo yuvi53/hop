@@ -69,9 +69,10 @@ pub fn get_data() -> Result<Vec<Data>, Box<dyn Error>> {
     Ok(results)
 }
 
-fn exist_in_database(data: &Vec<Data>, queried_path: &str) -> Result<bool, Box<dyn Error>> {
+fn exist_in_database(queried_path: &str) -> Result<bool, Box<dyn Error>> {
+    let entries = get_data()?;
     let mut exist = false;
-    for &Data {weight: _, ref path} in data.iter() {
+    for &Data {weight: _, ref path} in entries.iter() {
         if path.to_str().unwrap() == queried_path {
             exist = true;
         }
@@ -97,7 +98,7 @@ pub fn add_path(data: &Vec<Data>, path: String, weight: Option<f64>) -> Result<(
         .truncate(true)
         .open(&data_path)?;
     let mut buffer = String::new();
-    match exist_in_database(&data, &path)? {
+    match exist_in_database(&path)? {
         false => {
             for &Data {weight, ref path} in data.iter() {
                 buffer.push_str(& format!("{} {}\n", weight, path.to_str().unwrap()));
@@ -121,7 +122,7 @@ pub fn add_path(data: &Vec<Data>, path: String, weight: Option<f64>) -> Result<(
     Ok(())
 }
 
-pub fn find_matches(entries: Vec<Data>, needle: String) -> Result<Vec<Data>, Box<dyn Error>> {
+pub fn find_matches(needle: String, entries: Vec<Data>) -> Vec<Data> {
     let is_cwd = |entry: &Data| {
         let pwd = std::env::current_dir()
             .expect("couldn't get the working directory");
@@ -129,14 +130,13 @@ pub fn find_matches(entries: Vec<Data>, needle: String) -> Result<Vec<Data>, Box
         let entry_path = entry.path.to_str().unwrap();
         pwd == entry_path
     };
-    let matches: Vec<Data> = ifilter(
+    ifilter(
         |entry: &Data| !is_cwd(entry) && entry.path.exists(),
         iter::chain(
             match_consecutive(needle.clone(), entries.clone()),
             match_fuzzy(needle.clone(), entries.clone(), None),
         )
-    ); 
-    Ok(matches)
+    )
 }
 
 fn match_consecutive(needle: String, entries: Vec<Data>) -> Vec<Data> {

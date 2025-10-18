@@ -17,11 +17,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get_matches();
     let data = get_data()?;
     if let Some(dir) = matches.get_one::<String>("dir") {
-        let matches = find_matches(dir.clone(), get_data()?);
+        let matches = find_matches(dir.clone(), data.clone());
         println!("{}", matches[0].path.display());
     }
     if let Some(path) = matches.get_one::<String>("add") {
-        add_path(&data, path.clone(), None)?;
+        add_path(path.clone(), data.clone(), None)?;
     }
     Ok(())
 }

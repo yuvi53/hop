@@ -17,7 +17,7 @@ pub struct Config {
     pub backup_path: PathBuf,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Data {
     pub weight: f64,
     pub path: PathBuf,
@@ -80,7 +80,7 @@ fn exist_in_database(queried_path: &str) -> Result<bool, Box<dyn Error>> {
     Ok(exist)
 }
 
-pub fn add_path(data: &Vec<Data>, path: String, weight: Option<f64>) -> Result<(), Box<dyn Error>> {
+pub fn add_path(path: String, data: Vec<Data>, weight: Option<f64>) -> Result<(), Box<dyn Error>> {
     let weight = match weight {
         Some(num) => num,
         None => 10.0,
@@ -144,9 +144,9 @@ fn match_consecutive(needle: String, entries: Vec<Data>) -> Vec<Data> {
     ifilter(closure, entries)
 }
 
-fn ifilter<F, I, T,>(f: F, entries: I) -> Vec<T>
+fn ifilter<F, I, T>(f: F, entries: I) -> Vec<T>
     where F: Fn(&T) -> bool,
-    I: IntoIterator<Item = T>,
+    I: IntoIterator<Item = T >,
 {
     let mut results: Vec<T> = Vec::new();
     for entry in entries.into_iter() {

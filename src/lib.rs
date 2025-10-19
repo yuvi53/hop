@@ -17,7 +17,7 @@ pub struct Config {
     pub backup_path: PathBuf,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Data {
     pub weight: f64,
     pub path: PathBuf,
@@ -144,9 +144,9 @@ fn match_consecutive(needle: String, entries: Vec<Data>) -> Vec<Data> {
     ifilter(closure, entries)
 }
 
-fn ifilter<F, I, T>(f: F, entries: I) -> Vec<T>
+fn ifilter<F, I, T,>(f: F, entries: I) -> Vec<T>
     where F: Fn(&T) -> bool,
-    I: IntoIterator<Item = T >,
+    I: IntoIterator<Item = T>,
 {
     let mut results: Vec<T> = Vec::new();
     for entry in entries.into_iter() {

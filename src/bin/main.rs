@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let data_path = set_defaults()?;
     let data = load(data_path.clone())?;
     if let Some(dir) = matches.get_one::<String>("dir") {
-        let matches = find_matches(dir.clone(), data.clone());
+        let matches = find_matches(dir.clone(), data.clone(), None);
         println!("{}", matches[0].path.display());
     }
     if let Some(path) = matches.get_one::<String>("add") {

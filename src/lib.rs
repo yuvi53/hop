@@ -4,26 +4,24 @@ use std::path::PathBuf;
 use std::env;
 use std::error::Error;
 use dotenvy::dotenv;
-use regex::Regex;
 use std::iter;
 
 #[cfg(test)]
 mod tests;
 
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Config {
     pub data_path: PathBuf,
     pub backup_path: PathBuf,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Data {
     pub weight: f64,
     pub path: PathBuf,
 }
 
-fn set_defaults() -> Result<Config, Box<dyn Error>> {
+pub fn set_defaults() -> Result<Config, Box<dyn Error>> {
     dotenv().ok();
     let data_home: PathBuf = match env::var("XDG_DATA_HOME") {
         Ok(path) => PathBuf::from(&path),
@@ -42,84 +40,77 @@ fn set_defaults() -> Result<Config, Box<dyn Error>> {
     Ok(Config {data_path, backup_path})
 }
 
-fn create_data_dir() -> Result<(), Box<dyn Error>> {
-    let data_path = set_defaults()?.data_path;
-    fs::create_dir_all(data_path.parent().unwrap())?;
-    Ok(())
-}
-
-pub fn get_data() -> Result<Vec<Data>, Box<dyn Error>> {
-    let re = Regex::new(r"(?m)^([0-9]+\.?[0-9]*) ([^:\n\r]+)$").unwrap();
-    let data_path = set_defaults()?.data_path;
+pub fn load(config: Config) -> Result<Vec<Data>, Box<dyn Error>> {
+    let data_path = config.data_path;
     if !data_path.exists() {
-        create_data_dir()?;
-        File::create(&data_path)?;
         return Ok(Vec::new());
     }
-    let hay = fs::read_to_string(&data_path)?;
-    let results: Vec<Data> = re.captures_iter(&hay).map(|c| {
-        let (_, [weight, path]) = c.extract();
-        let path = path
-            .trim();
-        let weight = weight
+    let file = fs::read_to_string(&data_path)?;
+    let results: Vec<Data> = file.lines().map(|line| {
+        let v: Vec<&str> = line.split("\t").collect();
+        let weight = v[0]
             .parse::<f64>()
             .expect("couldn't convert &str to f64(while parsing)");
+        let path = v[1].trim();
         Data {weight, path: PathBuf::from(path)}
     }).collect();
     Ok(results)
 }
 
-fn exist_in_database(queried_path: &str) -> Result<bool, Box<dyn Error>> {
-    let entries = get_data()?;
-    let mut exist = false;
-    for &Data {weight: _, ref path} in entries.iter() {
-        if path.to_str().unwrap() == queried_path {
-            exist = true;
-        }
-    }
-    Ok(exist)
-}
 
-pub fn add_path(path: String, data: Vec<Data>, weight: Option<f64>) -> Result<(), Box<dyn Error>> {
-    let weight = match weight {
-        Some(num) => num,
-        None => 10.0,
-    };
-    let data_path = set_defaults()?.data_path;
+pub fn save(config: Config, data: Vec<Data>) -> Result<(), Box<dyn Error>> {
+    let data_path = config.data_path;
     if !data_path.exists() {
-        create_data_dir()?;
+        fs::create_dir_all(
+            data_path.parent().unwrap()
+        )?;
         File::create(&data_path)?;
-    }
-    if &path == &env::var("HOME").unwrap() {
-        return Ok(());
     }
     let mut file = OpenOptions::new()
         .write(true)
         .truncate(true)
         .open(&data_path)?;
     let mut buffer = String::new();
-    match exist_in_database(&path)? {
-        false => {
-            for &Data {weight, ref path} in data.iter() {
-                buffer.push_str(& format!("{} {}\n", weight, path.to_str().unwrap()));
-            }
-            buffer.push_str(& format!("{} {}\n", weight, &path));
-        },
-        true => {
-            for Data {weight: lweight, path: lpath} in data.iter() {
-                let lpath = lpath.to_str().unwrap();
-                if lpath == &path {
-                    let lweight = ((lweight * lweight) + (weight * weight)).sqrt();
-                    buffer.push_str(& format!("{} {}\n", lweight, lpath));
-                } 
-                else {
-                    buffer.push_str(& format!("{} {}\n", lweight, lpath));
-                }
-            }
-        },
+    for Data {weight, path} in data {
+        let path = path.to_str().unwrap();
+        buffer.push_str(& format!("{}\t{}\n", weight, path));
     }
     write!(file, "{}", buffer)?;
     Ok(())
+}
+
+fn exist_in_database(queried_path: PathBuf, data: Vec<Data>) -> bool {
+    let mut exist = false;
+    for Data {weight: _, path} in data {
+        if path == queried_path {
+            exist = true;
+        }
+    }
+    exist
+}
+
+pub fn add_path(path: PathBuf, mut data: Vec<Data>, weight: Option<f64>) -> Vec<Data> {
+    let weight = match weight {
+        Some(num) => num,
+        None => 10.0,
+    };
+
+    if path == PathBuf::from(env::var("HOME").unwrap()) {
+        return data;
+    }
+    match exist_in_database(path.clone(), data.clone()) {
+        false => {
+            data.push(Data {weight, path});
+        },
+        true => {
+            for Data {weight: lweight, path: lpath} in data.iter_mut() {
+                if path == *lpath {
+                    *lweight = ((*lweight * *lweight) + (weight * weight)).sqrt();
+                } 
+            }
+        },
+    }
+    data
 }
 
 pub fn find_matches(needle: String, entries: Vec<Data>) -> Vec<Data> {

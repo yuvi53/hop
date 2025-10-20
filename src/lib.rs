@@ -57,7 +57,6 @@ pub fn load(config: Config) -> Result<Vec<Data>, Box<dyn Error>> {
     Ok(results)
 }
 
-
 pub fn save(config: Config, data: Vec<Data>) -> Result<(), Box<dyn Error>> {
     let data_path = config.data_path;
     if !data_path.exists() {
@@ -113,45 +112,17 @@ pub fn add_path(path: PathBuf, mut data: Vec<Data>, weight: Option<f64>) -> Vec<
     data
 }
 
-pub fn find_matches(needle: String, entries: Vec<Data>) -> Vec<Data> {
+pub fn find_matches(needle: String, entries: Vec<Data>, threshold: Option<f64>) -> Vec<Data> {
+    let threshold = match threshold {
+        Some(num) => num,
+        None => 0.6,
+    };
     let is_cwd = |entry: &Data| {
         let pwd = std::env::current_dir()
             .expect("couldn't get the working directory");
         let pwd = pwd.to_str().expect("couldn't convert pwd to &str");
         let entry_path = entry.path.to_str().unwrap();
         pwd == entry_path
-    };
-    ifilter(
-        |entry: &Data| !is_cwd(entry) && entry.path.exists(),
-        iter::chain(
-            match_consecutive(needle.clone(), entries.clone()),
-            match_fuzzy(needle.clone(), entries.clone(), None),
-        )
-    )
-}
-
-fn match_consecutive(needle: String, entries: Vec<Data>) -> Vec<Data> {
-    let closure = |r: &Data| r.path.ends_with(&needle);
-    ifilter(closure, entries)
-}
-
-fn ifilter<F, I, T,>(f: F, entries: I) -> Vec<T>
-    where F: Fn(&T) -> bool,
-    I: IntoIterator<Item = T>,
-{
-    let mut results: Vec<T> = Vec::new();
-    for entry in entries.into_iter() {
-        if f(&entry) {
-            results.push(entry)
-        }
-    }
-    results
-}
-
-fn match_fuzzy(needle: String, entries: Vec<Data>, threshold: Option<f64>) -> Vec<Data> {
-    let threshold = match threshold {
-        Some(num) => num,
-        None => 0.6,
     };
     let meets_threshold = |entry: &Data| {
         let entry = entry.path
@@ -161,7 +132,21 @@ fn match_fuzzy(needle: String, entries: Vec<Data>, threshold: Option<f64>) -> Ve
             .expect("couldn't convert OsStr into &str");
         match_percent(&entry, &needle) >= threshold
     };
-    ifilter(meets_threshold, entries)
+    let entries: Vec<Data> = entries
+        .into_iter()
+        .filter(|entry| !is_cwd(entry) && entry.path.exists())
+        .collect();
+
+    iter::chain(
+        entries.clone()
+            .into_iter()
+            .filter(|entry| entry.path.ends_with(&needle))
+            .collect::<Vec<Data>>(),
+        entries.clone()
+            .into_iter()
+            .filter(meets_threshold)
+            .collect::<Vec<Data>>(),
+    ).collect::<Vec<Data>>()
 }
 
 fn match_percent(s1: &str, s2: &str) -> f64 {

@@ -4,9 +4,8 @@ use std::path::PathBuf;
 use hop::{
     add_path,
     find_matches,
-    load,
     set_defaults,
-    save,
+    data::{load, save},
 };
 
 fn main() -> Result<(), Box<dyn Error>> {

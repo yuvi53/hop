@@ -1,13 +1,13 @@
-use std::io::prelude::*;
-use std::fs::{self, File, OpenOptions};
-use std::path::PathBuf;
-use std::env;
 use std::error::Error;
+use std::path::PathBuf;
+use std::{env, iter};
 use dotenvy::dotenv;
-use std::iter;
 
 #[cfg(test)]
 mod tests;
+
+pub mod data;
+pub mod search;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Config {
@@ -40,54 +40,6 @@ pub fn set_defaults() -> Result<Config, Box<dyn Error>> {
     Ok(Config {data_path, backup_path})
 }
 
-pub fn load(config: Config) -> Result<Vec<Data>, Box<dyn Error>> {
-    let data_path = config.data_path;
-    if !data_path.exists() {
-        return Ok(Vec::new());
-    }
-    let file = fs::read_to_string(&data_path)?;
-    let results: Vec<Data> = file.lines().map(|line| {
-        let v: Vec<&str> = line.split("\t").collect();
-        let weight = v[0]
-            .parse::<f64>()
-            .expect("couldn't convert &str to f64(while parsing)");
-        let path = v[1].trim();
-        Data {weight, path: PathBuf::from(path)}
-    }).collect();
-    Ok(results)
-}
-
-pub fn save(config: Config, data: Vec<Data>) -> Result<(), Box<dyn Error>> {
-    let data_path = config.data_path;
-    if !data_path.exists() {
-        fs::create_dir_all(
-            data_path.parent().unwrap()
-        )?;
-        File::create(&data_path)?;
-    }
-    let mut file = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(&data_path)?;
-    let mut buffer = String::new();
-    for Data {weight, path} in data {
-        let path = path.to_str().unwrap();
-        buffer.push_str(& format!("{}\t{}\n", weight, path));
-    }
-    write!(file, "{}", buffer)?;
-    Ok(())
-}
-
-fn exist_in_database(queried_path: PathBuf, data: Vec<Data>) -> bool {
-    let mut exist = false;
-    for Data {weight: _, path} in data {
-        if path == queried_path {
-            exist = true;
-        }
-    }
-    exist
-}
-
 pub fn add_path(path: PathBuf, mut data: Vec<Data>, weight: Option<f64>) -> Vec<Data> {
     let weight = match weight {
         Some(num) => num,
@@ -97,7 +49,7 @@ pub fn add_path(path: PathBuf, mut data: Vec<Data>, weight: Option<f64>) -> Vec<
     if path == PathBuf::from(env::var("HOME").unwrap()) {
         return data;
     }
-    match exist_in_database(path.clone(), data.clone()) {
+    match data::exist_in_database(path.clone(), data.clone()) {
         false => {
             data.push(Data {weight, path});
         },
@@ -130,7 +82,7 @@ pub fn find_matches(needle: String, entries: Vec<Data>, threshold: Option<f64>) 
             .expect("couldn't get the dir name")
             .to_str()
             .expect("couldn't convert OsStr into &str");
-        match_percent(&entry, &needle) >= threshold
+        search::match_percent(&entry, &needle) >= threshold
     };
     let entries: Vec<Data> = entries
         .into_iter()
@@ -147,25 +99,4 @@ pub fn find_matches(needle: String, entries: Vec<Data>, threshold: Option<f64>) 
             .filter(meets_threshold)
             .collect::<Vec<Data>>(),
     ).collect::<Vec<Data>>()
-}
-
-fn match_percent(s1: &str, s2: &str) -> f64 {
-    let m = s1.chars().count();
-    let n = s2.chars().count();
-    let mut result = 0;
-
-    for i in 0..m {
-        for j in 0..n {
-            let mut curr = 0;
-            while (i + curr) < m 
-            && (j + curr) < n 
-            && s1.chars().nth(i + curr).unwrap() == s2.chars().nth(j + curr).unwrap() {
-                curr+=1;
-            }
-            if curr > result {
-                result = curr;
-            }
-        }
-    }
-    (result as f64 * 2.0) / (m as f64 + n as f64)
 }

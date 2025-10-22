@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::path::PathBuf;
-use std::{env, iter};
+use std::{env};
 use dotenvy::dotenv;
 
 #[cfg(test)]
@@ -84,19 +84,28 @@ pub fn find_matches(needle: String, entries: Vec<Data>, threshold: Option<f64>) 
             .expect("couldn't convert OsStr into &str");
         search::match_percent(&entry, &needle) >= threshold
     };
+    let match_anywhere = |entry: &Data| {
+        let mut exist = false;
+        for component in entry.path.iter() {
+            if needle == component.to_str().unwrap() {
+                exist = true;
+            }
+        }
+        exist
+    };
     let entries: Vec<Data> = entries
         .into_iter()
         .filter(|entry| !is_cwd(entry) && entry.path.exists())
         .collect();
 
-    iter::chain(
-        entries.clone()
+    entries.clone()
+        .into_iter()
+        .filter(|entry| entry.path.ends_with(&needle))
+        .chain(entries.clone()
             .into_iter()
-            .filter(|entry| entry.path.ends_with(&needle))
-            .collect::<Vec<Data>>(),
-        entries.clone()
+            .filter(meets_threshold))
+        .chain(entries.clone()
             .into_iter()
-            .filter(meets_threshold)
-            .collect::<Vec<Data>>(),
-    ).collect::<Vec<Data>>()
+            .filter(match_anywhere))
+        .collect::<Vec<Data>>()
 }

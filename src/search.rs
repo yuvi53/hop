@@ -18,5 +18,3 @@ pub fn match_percent(s1: &str, s2: &str) -> f64 {
     }
     (result as f64 * 2.0) / (m as f64 + n as f64)
 }
-
-pub fn match_anywhere() {}

@@ -21,6 +21,9 @@ pub struct Data {
     pub path: PathBuf,
 }
 
+pub const BACKUP_THRESHOLD: u64 = 24 * 60 * 60;
+pub const FUZZY_MATCH_THRESHOLD: f64 = 0.6;
+
 pub fn set_defaults() -> Result<Config, Box<dyn Error>> {
     dotenv().ok();
     let data_home: PathBuf = match env::var("XDG_DATA_HOME") {
@@ -64,11 +67,7 @@ pub fn add_path(path: PathBuf, mut data: Vec<Data>, weight: Option<f64>) -> Vec<
     data
 }
 
-pub fn find_matches(needle: String, entries: Vec<Data>, threshold: Option<f64>) -> Vec<Data> {
-    let threshold = match threshold {
-        Some(num) => num,
-        None => 0.6,
-    };
+pub fn find_matches(needle: String, entries: Vec<Data>) -> Vec<Data> {
     let is_cwd = |entry: &Data| {
         let pwd = std::env::current_dir()
             .expect("couldn't get the working directory");
@@ -82,7 +81,7 @@ pub fn find_matches(needle: String, entries: Vec<Data>, threshold: Option<f64>) 
             .expect("couldn't get the dir name")
             .to_str()
             .expect("couldn't convert OsStr into &str");
-        search::match_percent(&entry, &needle) >= threshold
+        search::match_percent(&entry, &needle) >= FUZZY_MATCH_THRESHOLD
     };
     let match_anywhere = |entry: &Data| {
         let mut exist = false;

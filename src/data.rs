@@ -1,9 +1,11 @@
 use std::error::Error;
 use std::io::prelude::*;
 use std::path::PathBuf;
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, File};
+use std::time::SystemTime;
 
 use crate::{Config, Data};
+use crate::BACKUP_THRESHOLD;
 
 pub fn load(config: Config) -> Result<Vec<Data>, Box<dyn Error>> {
     let data_path = config.data_path;
@@ -23,23 +25,31 @@ pub fn load(config: Config) -> Result<Vec<Data>, Box<dyn Error>> {
 }
 
 pub fn save(config: Config, data: Vec<Data>) -> Result<(), Box<dyn Error>> {
-    let data_path = config.data_path;
-    if !data_path.exists() {
-        fs::create_dir_all(
-            data_path.parent().unwrap()
-        )?;
-        File::create(&data_path)?;
-    }
-    let mut file = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(&data_path)?;
     let mut buffer = String::new();
     for Data {weight, path} in data {
         let path = path.to_str().unwrap();
         buffer.push_str(& format!("{}\t{}\n", weight, path));
     }
+    let data_path = config.data_path;
+    if !data_path.parent().unwrap().exists() {
+        fs::create_dir_all(
+            data_path.parent().unwrap()
+        )?;
+    }
+    let mut file = File::create(&data_path)?;
     write!(file, "{}", buffer)?;
+    let backup_path = config.backup_path;
+    if !backup_path.exists() {
+        let mut file = File::create(&backup_path)?;
+        write!(file, "{}", buffer)?;
+    }
+    let time = SystemTime::now()
+        .duration_since(file.metadata()?.modified()?)?
+        .as_secs();
+    if time > BACKUP_THRESHOLD {
+        let mut file = File::create(&backup_path)?;
+        write!(file, "{}", buffer)?;
+    }
     Ok(())
 }
 

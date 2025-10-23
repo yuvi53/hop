@@ -8,9 +8,12 @@ use crate::{Config, Data};
 use crate::BACKUP_THRESHOLD;
 
 pub fn load(config: Config) -> Result<Vec<Data>, Box<dyn Error>> {
-    let data_path = config.data_path;
+    let mut data_path = config.data_path;
     if !data_path.exists() {
-        return Ok(Vec::new());
+        match config.backup_path.exists() {
+            true => data_path = config.backup_path,
+            false => return Ok(Vec::new()),
+        }
     }
     let file = fs::read_to_string(&data_path)?;
     let results: Vec<Data> = file.lines().map(|line| {

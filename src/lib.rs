@@ -67,7 +67,7 @@ pub fn add_path(path: PathBuf, mut data: Vec<Data>, weight: Option<f64>) -> Vec<
     data
 }
 
-pub fn find_matches(needle: String, entries: Vec<Data>) -> Vec<Data> {
+pub fn find_matches(needle: String, mut entries: Vec<Data>) -> Vec<Data> {
     let is_cwd = |entry: &Data| {
         let pwd = std::env::current_dir()
             .expect("couldn't get the working directory");
@@ -92,6 +92,7 @@ pub fn find_matches(needle: String, entries: Vec<Data>) -> Vec<Data> {
         }
         exist
     };
+    entries.sort_by(|a, b| b.weight.total_cmp(&a.weight));
     let entries: Vec<Data> = entries
         .into_iter()
         .filter(|entry| !is_cwd(entry) && entry.path.exists())

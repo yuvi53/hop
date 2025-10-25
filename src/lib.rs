@@ -98,7 +98,7 @@ pub fn find_matches(needle: String, mut entries: Vec<Data>) -> Vec<Data> {
         .filter(|entry| !is_cwd(entry) && entry.path.exists())
         .collect();
 
-    entries.clone()
+    let entries: Vec<Data> = entries.clone()
         .into_iter()
         .filter(|entry| entry.path.ends_with(&needle))
         .chain(entries.clone()
@@ -107,5 +107,12 @@ pub fn find_matches(needle: String, mut entries: Vec<Data>) -> Vec<Data> {
         .chain(entries.clone()
             .into_iter()
             .filter(match_anywhere))
-        .collect::<Vec<Data>>()
+        .collect();
+    let mut matches: Vec<Data> =  Vec::new();
+    for entry in entries.into_iter() {
+        if !matches.contains(&entry) {
+            matches.push(entry);
+        }
+    }
+    matches
 }

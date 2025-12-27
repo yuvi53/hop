@@ -1,21 +1,16 @@
-use std::error::Error;
-use clap::{Arg, Command, ArgAction};
-use std::path::PathBuf;
+use clap::{Arg, ArgAction, Command};
 use hop::{
     add_path,
-    find_matches,
-    set_defaults,
     data::{load, save},
+    find_matches, set_defaults,
 };
+use std::error::Error;
+use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = Command::new("whatever")
-        .arg(Arg::new("add")
-            .long("add")
-            .action(ArgAction::Set))
-        .arg(Arg::new("dir")
-            .long("dir")
-            .action(ArgAction::Set))
+        .arg(Arg::new("add").long("add").action(ArgAction::Set))
+        .arg(Arg::new("dir").long("dir").action(ArgAction::Set))
         .get_matches();
     let data_path = set_defaults()?;
     let data = load(data_path.clone())?;

@@ -1,7 +1,7 @@
+use dotenvy::dotenv;
+use std::env;
 use std::error::Error;
 use std::path::PathBuf;
-use std::{env};
-use dotenvy::dotenv;
 
 #[cfg(test)]
 mod tests;
@@ -28,19 +28,18 @@ pub fn set_defaults() -> Result<Config, Box<dyn Error>> {
     dotenv().ok();
     let data_home: PathBuf = match env::var("XDG_DATA_HOME") {
         Ok(path) => PathBuf::from(&path),
-        Err(_) => {
-            [
-                &env::var("HOME").unwrap(),
-                ".local",
-                "share",
-            ].iter().collect()
-        },
+        Err(_) => [&env::var("HOME").unwrap(), ".local", "share"]
+            .iter()
+            .collect(),
     };
     let mut data_path = data_home.clone();
     data_path.push("hop/hop.txt");
     let mut backup_path = data_home.clone();
     backup_path.push("hop/hop.txt.bak");
-    Ok(Config {data_path, backup_path})
+    Ok(Config {
+        data_path,
+        backup_path,
+    })
 }
 
 pub fn add_path(path: PathBuf, mut data: Vec<Data>, weight: Option<f64>) -> Vec<Data> {
@@ -54,29 +53,33 @@ pub fn add_path(path: PathBuf, mut data: Vec<Data>, weight: Option<f64>) -> Vec<
     }
     match data::exist_in_database(path.clone(), data.clone()) {
         false => {
-            data.push(Data {weight, path});
-        },
+            data.push(Data { weight, path });
+        }
         true => {
-            for Data {weight: lweight, path: lpath} in data.iter_mut() {
+            for Data {
+                weight: lweight,
+                path: lpath,
+            } in data.iter_mut()
+            {
                 if path == *lpath {
                     *lweight = ((*lweight * *lweight) + (weight * weight)).sqrt();
-                } 
+                }
             }
-        },
+        }
     }
     data
 }
 
 pub fn find_matches(needle: String, mut entries: Vec<Data>) -> Vec<Data> {
     let is_cwd = |entry: &Data| {
-        let pwd = std::env::current_dir()
-            .expect("couldn't get the working directory");
+        let pwd = std::env::current_dir().expect("couldn't get the working directory");
         let pwd = pwd.to_str().expect("couldn't convert pwd to &str");
         let entry_path = entry.path.to_str().unwrap();
         pwd == entry_path
     };
     let meets_threshold = |entry: &Data| {
-        let entry = entry.path
+        let entry = entry
+            .path
             .file_name()
             .expect("couldn't get the dir name")
             .to_str()
@@ -98,17 +101,14 @@ pub fn find_matches(needle: String, mut entries: Vec<Data>) -> Vec<Data> {
         .filter(|entry| !is_cwd(entry) && entry.path.exists())
         .collect();
 
-    let entries: Vec<Data> = entries.clone()
+    let entries: Vec<Data> = entries
+        .clone()
         .into_iter()
         .filter(|entry| entry.path.ends_with(&needle))
-        .chain(entries.clone()
-            .into_iter()
-            .filter(meets_threshold))
-        .chain(entries.clone()
-            .into_iter()
-            .filter(match_anywhere))
+        .chain(entries.clone().into_iter().filter(meets_threshold))
+        .chain(entries.clone().into_iter().filter(match_anywhere))
         .collect();
-    let mut matches: Vec<Data> =  Vec::new();
+    let mut matches: Vec<Data> = Vec::new();
     for entry in entries.into_iter() {
         if !matches.contains(&entry) {
             matches.push(entry);

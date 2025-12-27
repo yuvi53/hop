@@ -6,10 +6,11 @@ pub fn match_percent(s1: &str, s2: &str) -> f64 {
     for i in 0..m {
         for j in 0..n {
             let mut curr = 0;
-            while (i + curr) < m 
-            && (j + curr) < n 
-            && s1.chars().nth(i + curr).unwrap() == s2.chars().nth(j + curr).unwrap() {
-                curr+=1;
+            while (i + curr) < m
+                && (j + curr) < n
+                && s1.chars().nth(i + curr).unwrap() == s2.chars().nth(j + curr).unwrap()
+            {
+                curr += 1;
             }
             if curr > result {
                 result = curr;

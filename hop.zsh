@@ -1,11 +1,11 @@
 #!/bin/zsh
 
 function hop_chpwd () {
-    ~/projects/hop/target/release/main --add "$(pwd)" >/dev/null &!;
+    ~/lcode/lrust/hop/target/release/main --add "$(pwd)" >/dev/null &!;
 }
 
 function h () {
-    cmd=$(~/projects/hop/target/release/main --dir "$@");
+    cmd=$(~/lcode/lrust/hop/target/release/main --dir "$@");
     cd "${cmd}";
 }
 

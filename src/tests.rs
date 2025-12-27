@@ -1,4 +1,4 @@
-use crate::*; 
+use crate::*;
 
 #[test]
 fn test_set_defaults() -> Result<(), Box<dyn Error>> {
@@ -12,7 +12,7 @@ fn test_set_defaults() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_add_path() -> Result<(), Box<dyn Error>> {
-    let string_foo = String::from("/test_data/foo_dir");  
+    let string_foo = String::from("/test_data/foo_dir");
     if !exist_in_database(&string_foo)? {
         add_path(string_foo.clone(), get_data()?, None)?;
         assert!(exist_in_database(&string_foo)?);
@@ -22,14 +22,14 @@ fn test_add_path() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_exist_in_database() -> Result<(), Box<dyn Error>> {
-    let string_foo = String::from("/test_data/foo_dir");  
+    let string_foo = String::from("/test_data/foo_dir");
     add_path(string_foo.clone(), get_data()?, None)?;
     assert!(exist_in_database(&string_foo)?);
     Ok(())
 }
 
 #[test]
-fn test_load() -> Result<(), Box<dyn Error>>{
+fn test_load() -> Result<(), Box<dyn Error>> {
     let string_foo = String::from("/test_data/foo_dir");
     if get_data()?.len() == 0 {
         add_path(string_foo.clone(), get_data()?, None)?;
@@ -48,7 +48,7 @@ fn test_find_matches() -> Result<(), Box<dyn Error>> {
     if !exist_in_database(str_foo)? {
         add_path(String::from(str_foo), get_data()?, None)?;
         //testing for consecutive
-        let results = find_matches(String::from("foo_dir"), get_data()?);  
+        let results = find_matches(String::from("foo_dir"), get_data()?);
         assert_eq!(results[0].path, path_foo);
     }
     let mut path_bar = data_path.clone();
@@ -58,7 +58,7 @@ fn test_find_matches() -> Result<(), Box<dyn Error>> {
     if !exist_in_database(str_bar)? {
         add_path(String::from(str_bar), get_data()?, None)?;
         //testing for fuzzy
-        let results = find_matches(String::from("bar_"), get_data()?);  
+        let results = find_matches(String::from("bar_"), get_data()?);
         assert_eq!(results[0].path, path_bar);
     }
     Ok(())
@@ -70,7 +70,7 @@ fn test_match_fuzzy() -> Result<(), Box<dyn Error>> {
     let expected_path = PathBuf::from(&string_path);
     if !exist_in_database(&string_path)? {
         add_path(string_path.clone(), get_data()?, None)?;
-        let results = match_fuzzy(String::from("foo_"), get_data()?, None);  
+        let results = match_fuzzy(String::from("foo_"), get_data()?, None);
         assert_eq!(results[0].path, expected_path);
     }
     Ok(())
